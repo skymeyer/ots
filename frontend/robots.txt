@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /$
+Allow: /style.css
+Allow: /app.js
+Allow: /assets/
+Disallow: /

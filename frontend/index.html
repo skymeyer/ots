@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>One-Time Secret Sharing</title>
+    <link rel="stylesheet" href="/style.css">
+    <!-- Google Fonts for premium typography -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+</head>
+
+<body>
+
+    <div class="background-animation"></div>
+
+    <main class="container">
+        <header>
+            <a href="/" class="logo-container" style="text-decoration: none;">
+                <img src="/assets/favicon.svg" alt="Shred Logo" class="logo"
+                    onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                <div class="logo-fallback" style="display: none;">🔒</div>
+            </a>
+            <h1>Secure Secret Sharing</h1>
+            <p class="subtitle">Share sensitive information using self-destructing links.</p>
+        </header>
+
+        <!-- View: Authorization -->
+        <section id="auth-view" class="view active card glass">
+            <h2>Authentication Required</h2>
+            <p>You must be authenticated to create a new one-time secret.</p>
+            <a href="/api/auth/google/login" class="btn primary-btn"><svg version="1.1"
+                    xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" viewBox="0 0 48 48"
+                    style="margin-right:8px;">
+                    <path fill="#EA4335"
+                        d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z">
+                    </path>
+                    <path fill="#4285F4"
+                        d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z">
+                    </path>
+                    <path fill="#FBBC05"
+                        d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z">
+                    </path>
+                    <path fill="#34A853"
+                        d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z">
+                    </path>
+                    <path fill="none" d="M0 0h48v48H0z"></path>
+                </svg> Login with Google</a>
+            <div id="dev-login-fallback"></div>
+        </section>
+
+        <!-- View: Dashboard (Create Secret) -->
+        <section id="dashboard-view" class="view card glass">
+            <div class="user-info" style="display: flex; align-items: center; justify-content: space-between;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <img id="user-picture" src="" alt="Profile" style="width: 32px; height: 32px; border-radius: 50%; display: none;">
+                    <span>Logged in as <strong id="user-email"></strong></span>
+                </div>
+                <a href="/api/auth/logout" class="btn secondary-btn"
+                    style="padding: 0.4rem 0.8rem; font-size: 0.85rem;">Logout</a>
+            </div>
+            <div id="create-secret-container">
+                <h2>Create New Secret</h2>
+                <p>Paste the content below, generate a link, and share it. The generated link
+                    will only work <strong>once</strong>.</p>
+                <form id="create-secret-form">
+                    <textarea id="secret-input"
+                        placeholder="Type or paste your highly sensitive data here..."></textarea>
+
+                    <div style="margin-top: 15px; display: flex; align-items: center; justify-content: space-between;">
+                        <label style="font-size: 0.9rem; color: var(--text-secondary);">Self-destruct time:</label>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <input type="number" id="ttl-custom" class="hidden" min="1"
+                                style="background: rgba(13, 17, 23, 0.8); color: var(--text-primary); border: 1px solid var(--border-color); padding: 0.5rem; border-radius: 4px; outline: none; width: 90px;">
+                            <select id="ttl-input"
+                                style="background: rgba(13, 17, 23, 0.8); color: var(--text-primary); border: 1px solid var(--border-color); padding: 0.5rem; border-radius: 4px; outline: none;">
+                                <option value="1">1 Hour</option>
+                                <option value="4">4 Hours</option>
+                                <option value="24" selected>24 Hours</option>
+                                <option value="120">5 Days</option>
+                                <option value="custom">Custom ...</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-footer">
+                        <span id="char-count">0 / 1024</span>
+                        <button type="submit" class="btn active-btn">Create Secret</button>
+                    </div>
+                </form>
+            </div>
+            <div id="result-box" class="result-box hidden">
+                <h2>Secret Created!</h2>
+                <p>Share this link. It will self-destruct upon reading.</p>
+                <div class="copy-group">
+                    <input type="text" id="result-url" readonly />
+                    <button id="copy-url-btn" class="btn secondary-btn">Copy</button>
+                </div>
+                <div id="copy-feedback-url" class="feedback">Copied to clipboard!</div>
+                <button type="button" id="create-another-btn" class="btn active-btn"
+                    style="margin-top: 15px; width: 100%;">Create Another Secret</button>
+            </div>
+        </section>
+
+        <!-- View: Reveal (Read Secret) -->
+        <section id="reveal-view" class="view card glass">
+            <h2>Self Destructing Secret</h2>
+            <div id="reveal-pending">
+                <div class="warning-text">
+                    <span class="warning-icon">⚠️</span>
+                    <div class="warning-content">
+                        This secret can only be read <strong>once</strong>.<br />
+                        If you proceed, it will be permanently deleted.
+                    </div>
+                    <span class="warning-icon">⚠️</span>
+                </div>
+                <button id="reveal-btn" class="btn danger-btn">Reveal Secret</button>
+            </div>
+            <div id="reveal-success" class="hidden">
+                <p class="success-text">Secret revealed successfully! It has been destroyed.</p>
+                <div class="copy-group">
+                    <textarea id="revealed-secret" readonly></textarea>
+                </div>
+                <button id="copy-secret-btn" class="btn secondary-btn" style="margin-top: 10px; width: 100%;">Copy to
+                    Clipboard</button>
+                <div id="copy-feedback-secret" class="feedback">Copied to clipboard!</div>
+            </div>
+            <div id="reveal-error" class="hidden">
+                <div class="error-icon">❌</div>
+                <h3>Unavailable</h3>
+                <p>This secret has previously been retrieved or never existed.</p>
+            </div>
+        </section>
+
+        <!-- View: Loading -->
+        <section id="loading-view" class="view active loading">
+            <div class="spinner"></div>
+            <p>Loading...</p>
+        </section>
+
+        <!-- View: Error Modal -->
+        <div id="error-modal" class="modal-overlay hidden">
+            <div class="modal-content card glass">
+                <h2 style="color: var(--danger)">Access Denied</h2>
+                <p>Your user account has not been activated to use this service.</p>
+                <p id="contact-email-sentence" class="hidden">Please contact <a id="contact-email-link" href="#"
+                        class="text-link"></a> for activation.</p>
+                <button id="close-modal-btn" class="btn secondary-btn"
+                    style="width:100%; margin-top:1rem;">Close</button>
+            </div>
+        </div>
+
+        <!-- Cookie Banner -->
+        <div id="cookie-banner" class="cookie-banner hidden">
+            <p><strong>Cookie Preferences</strong><br />We use essential cookies to make our site works safely. We would
+                also like to use analytics cookies to gather usage statistics. You can choose to accept all or just
+                essential cookies.</p>
+            <div class="cookie-buttons">
+                <button id="cookie-accept-all" class="btn active-btn">Accept All</button>
+                <button id="cookie-essential" class="btn secondary-btn">Essential Only</button>
+            </div>
+        </div>
+
+    </main>
+
+    <footer id="site-footer">
+        <p>Built with ❤️ and precision by <a href="https://github.com/skymeyer/ots" target="_blank"
+                rel="noopener noreferrer">skymeyer</a></p>
+    </footer>
+
+    <script src="/app.js"></script>
+</body>
+
+</html>
