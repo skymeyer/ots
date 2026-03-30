@@ -54,6 +54,10 @@ var serverCmd = &cobra.Command{
 			SessionSecret:    viper.GetString("session-secret"),
 		}
 
+		// Initialize Logger
+		backend.InitLogger(backend.AppConfig.LogLevel, backend.AppConfig.Dev)
+		log.Info().Str("version", version).Msg("Logger initialized successfully")
+
 		// Security: Fallback to a random session secret if none provided in dev
 		if backend.AppConfig.SessionSecret == "" {
 			b := make([]byte, 32)
@@ -63,9 +67,6 @@ var serverCmd = &cobra.Command{
 			backend.AppConfig.SessionSecret = hex.EncodeToString(b)
 			log.Warn().Msg("No session secret provided, generated a random one")
 		}
-
-		// Initialize Logger
-		backend.InitLogger(backend.AppConfig.LogLevel, backend.AppConfig.Dev)
 
 		// Initialize secret store
 		var (

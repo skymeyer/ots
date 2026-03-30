@@ -14,9 +14,10 @@ RUN go mod download
 COPY . .
 
 # Build the Go application (strip debug info for smaller size)
-RUN go build -trimpath -ldflags="-s -w" -o server main.go
+ARG VERSION_ARG
+RUN go build -trimpath -ldflags="-s -w -X 'github.com/skymeyer/onetime-secret/cmd.version=$VERSION_ARG'" -o ots main.go
 
 
-FROM gcr.io/distroless/static
-COPY --from=builder /app/server /app/server
-ENTRYPOINT ["/app/server", "server"]
+FROM gcr.io/distroless/static-debian13:nonroot
+COPY --from=builder /app/ots /usr/bin/ots
+ENTRYPOINT ["/usr/bin/ots", "server"]

@@ -35,8 +35,6 @@ func InitLogger(levelStr string, dev bool) {
 		writer = os.Stdout
 	}
 	log.Logger = zerolog.New(writer).With().Timestamp().Logger()
-
-	log.Info().Str("level", level.String()).Msg("Logger initialized successfully")
 }
 
 // LoggerMiddleware is a custom chi-middleware that bridges chi requests to zerolog

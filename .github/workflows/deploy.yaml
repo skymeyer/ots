@@ -1,0 +1,57 @@
+name: deploy
+
+on:
+  push:
+    tags:
+      - v*.*.*
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+    - 
+      id: checkout
+      name: Checkout repository
+      uses: actions/checkout@v6
+    - 
+      id: auth
+      name: Authenticate to GCP
+      uses: google-github-actions/auth@v3  
+      with:
+        workload_identity_provider: projects/944826341188/locations/global/workloadIdentityPools/integrations/providers/github
+        service_account: github-actions@one-time-secrets-491623.iam.gserviceaccount.com
+    - 
+      run: gcloud auth configure-docker
+    - 
+      id: meta
+      name: Docker meta
+      uses: docker/metadata-action@v6
+      with:
+        images: gcr.io/skymeyer/onetime-secret
+    - 
+      id: build
+      name: Build and push container image
+      uses: docker/build-push-action@v7
+      with:
+        context: .
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        build-args: |
+          VERSION_ARG=${{ github.ref_name }}
+    -
+      id: deploy
+      name: Deploy to Cloud Run
+      uses: google-github-actions/deploy-cloudrun@v3
+      with:
+        service: onetime-secret
+        image: gcr.io/skymeyer/onetime-secret:${{ github.ref_name }}
+        region: us-west1
+        project_id: one-time-secrets-491623

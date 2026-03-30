@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
@@ -9,16 +10,26 @@ import (
 	"github.com/spf13/viper"
 )
 
-var cfgFile string
+var (
+	version = "v0.0.0"
+	cfgFile string
+)
 
 var rootCmd = &cobra.Command{
 	Use:   "ots",
-	Short: "A one-time secret sharing web application",
-	Long:  `A lightweight, zero-dependency frontend web application served by a Go backend, allowing users to securely share secrets via one-time unique URLs.`,
+	Short: "A one-time secret sharing web application " + version,
+}
+
+var versionCmd = &cobra.Command{
+	Use:   "version",
+	Short: "Print the version number of onetime-secret",
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Println(version)
+	},
 }
 
 func Execute() error {
-	rootCmd.AddCommand(serverCmd, dekCmd, userCmd)
+	rootCmd.AddCommand(serverCmd, dekCmd, userCmd, versionCmd)
 	return rootCmd.Execute()
 }
 

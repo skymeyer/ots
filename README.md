@@ -4,6 +4,8 @@ A secure, lightweight, and modern One-Time Secret sharing application. It enable
 
 Built with a fast **Go (Golang)** backend and a zero-dependency **Vanilla Javascript** frontend (SPA) featuring a sleek, responsive dark-mode glassmorphism UI.
 
+Example deployment using GCP Cloud Run: [https://secrets.skymeyer.dev](https://secrets.skymeyer.dev)
+
 ## Features
 
 - **End-to-End Security**: Envelope encryption powered by **Google Cloud KMS**.
