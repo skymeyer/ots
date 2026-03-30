@@ -1,4 +1,4 @@
-# One-Time Secret Sharing
+# One-Time Secret Sharing (OTS)
 
 A secure, lightweight, and modern One-Time Secret sharing application. It enables users to securely transmit sensitive information via self-destructing links. 
 
@@ -8,7 +8,7 @@ Built with a fast **Go (Golang)** backend and a zero-dependency **Vanilla Javasc
 
 - **End-to-End Security**: Envelope encryption powered by **Google Cloud KMS**.
 - **Ephemeral Storage**: Secrets are physically stored in **Google Cloud Storage (GCS)** and are permanently deleted ("burned") immediately upon the first view.
-- **Identity & Access Management**: Fully integrated **Google OAuth2** (with strict CSRF & PKCE protection) to gate access for secret creation.
+- **Identity & Access Management**: Fully integrated **Google OAuth2** (with strict CSRF & PKCE protection) to gate access for secret creation. Profile picture extraction included.
 - **Access Controls**: Authorize specific domains or specific email addresses via static lists or dynamic feature flagging.
 - **DDoS Mitigation**: Native IP-based token-bucket rate limiting to protect unauthenticated endpoints.
 - **Malicious IP Blocking**: Aggressively block bad actors globally via explicit IPs or CIDR boundaries.
@@ -22,21 +22,34 @@ The application is built to run cleanly in cloud-native environments (such as Ku
 ### Prerequisites
 - Go 1.21+
 - A Google Cloud Platform (GCP) project with the following configured:
-  - Cloud Storage Bucket
+  - Cloud Storage Bucket (For Secrets & User Profiles)
   - Cloud KMS Key Ring & Crypto Key
   - Secret Manager (for DEK storage)
   - Google OAuth2 Client ID/Secret
 
 ### Compilation
 ```bash
-go build -o server
-./server [flags]
+go build -o ots
 ```
 
-## Configuration
+## Command Line Interface (CLI)
 
-The application natively supports executing configuration through either explicit Command Line Flags, or identically prefixed environmentally sourced variables (`OTS_`). If both are present, CLI flags natively take precedence.
+The application has been restructured utilizing Cobra to offer distinct sub-commands for various operational domains. 
 
+The primary commands are:
+- `ots server`: Starts the primary HTTP web server.
+- `ots rotate-dek`: Physically initializes or rotates the Data Encryption Key (DEK) bound to Google Secret Manager.
+- `ots lookup-user [id]`: Retrieves mapped User Profile payloads from the isolated user GCS bucket.
+
+The application natively supports executing configuration through either explicit Command Line Flags, or identically prefixed environmentally sourced variables (`OTS_`). If both are present, CLI flags natively take precedence. A config file (`~/.onetime-secret.yaml` or `./.onetime-secret.yaml`) is also natively supported.
+
+---
+
+### Command: `ots server`
+
+Initiates the primary web application.
+
+#### General & UI Settings
 | Environment Variable | CLI Flag | Default | Description |
 |----------------------|----------|---------|-------------|
 | `OTS_DEV` | `--dev` | `false` | Enable dev mode for human-readable logging formatting |
@@ -44,8 +57,11 @@ The application natively supports executing configuration through either explici
 | `OTS_PORT` | `--port` | `8080` | Port for the HTTP server to listen on |
 | `OTS_PUBLIC_URL` | `--public-url` | `http://localhost:8080` | The public facing root URL. Heavily relied upon for OAuth Callbacks and UI Links |
 | `OTS_SESSION_SECRET` | `--session-secret` | *Dynamic* | Secret cryptographic key applied for MAC signing OAuth cookies. Automatically injects a random sequence if left blank in `--dev`. |
+| `OTS_CONTACT_EMAIL` | `--contact-email` | `""` | Support pathway address explicitly shown globally inside permission block pages |
+| `OTS_HIDE_FOOTER` | `--hide-footer` | `false` | When passed, this natively strips the HTML footer UI component cleanly from rendering |
+| `OTS_GOOGLE_TAG_ID` | `--google-tag-id` | `""` | Instantly inserts Google Analytics telemetry securely tied behind user cookie acceptances |
 
-### Google Cloud Infrastructure
+#### Google Cloud Infrastructure
 | Environment Variable | CLI Flag | Description |
 |----------------------|----------|-------------|
 | `OTS_PROJECT_ID` | `--project-id` | Your globally unique Google Cloud Project ID |
@@ -53,28 +69,30 @@ The application natively supports executing configuration through either explici
 | `OTS_KMS_KEY_RING` | `--kms-key-ring` | The KMS Key Ring identifier hosting your key |
 | `OTS_KMS_KEY` | `--kms-key` | The specific KMS Key identifier encrypting the DEK |
 | `OTS_DEK_SECRET` | `--dek-secret` | Name of the payload registered in GCP Secret Manager holding your primary Data Encryption Key |
-| `OTS_BUCKET` | `--bucket` | Name of the GCS bucket reserved for encrypting payload objects |
+| `OTS_SECRET_BUCKET` | `--secret-bucket` | Name of the GCS bucket reserved for encrypting payload objects |
+| `OTS_USER_BUCKET` | `--user-bucket` | Optional GCS bucket mapped explicitly to store hydrated user profile information objects |
 
-### Authentication & Authorization (OAuth2)
+#### Authentication & Authorization (OAuth2)
 | Environment Variable | CLI Flag | Description |
 |----------------------|----------|-------------|
 | `OTS_GOOGLE_CLIENT_ID` | `--google-client-id` | Your issued Google OAuth2 Application Client ID |
 | `OTS_GOOGLE_CLIENT_SECRET`| `--google-client-secret` | Your issued Google OAuth2 Application Client Secret |
+| `OTS_GOOGLE_SCOPES` | `--google-scopes` | Comma-separated list of OpenID Connect scopes (`openid,email` default) |
 | `OTS_ALLOWED_EMAILS` | `--allowed-emails` | Comma-separated list of strictly allowed email addresses (e.g., `admin@example.com`) |
 | `OTS_ALLOWED_DOMAINS` | `--allowed-domains` | Comma-separated list of authorized organizational Google domains (e.g., `example.com`) |
 | `OTS_BLOCKED_EMAILS` | `--blocked-emails` | Comma-separated list of strictly banned email addresses |
 
-### Application Limits & Throttling
+#### Application Limits & Throttling
 | Environment Variable | CLI Flag | Default | Description |
 |----------------------|----------|---------|-------------|
-| `OTS_MAX_SECRET_LENGTH` | `--max-secret-length` | `1024` | Maximum allowable characters limits per secret text block |
+| `OTS_MAX_SECRET_LENGTH` | `--max-secret-length` | `1024` | Maximum allowable character limits per secret text block |
 | `OTS_DEFAULT_TTL` | `--default-ttl` | `24` | Default expiration lifecycle bounds in **hours** initially highlighted |
 | `OTS_MAX_TTL` | `--max-ttl` | `168` | Hard architectural capability ceiling bounds for maximum TTL |
 | `OTS_RATE_LIMIT_REQUESTS` | `--rate-limit-requests` | `10` | The number of active hits unauthenticated IP scopes have before throttling |
 | `OTS_RATE_LIMIT_WINDOW`| `--rate-limit-window` | `1m` | The window timing algorithm bounds before IP block resets natively |
-| `OTS_BLOCKED_IPS` | `--blocked-ips` | `""` | Comma-separated list of globally blacklisted IPS that should instantly be locked out |
+| `OTS_BLOCKED_IPS` | `--blocked-ips` | `""` | Comma-separated list of globally blacklisted IPs that should instantly be locked out |
 
-### Dynamic Feature Flags (`go-feature-flag`)
+#### Dynamic Feature Flags (`go-feature-flag`)
 | Environment Variable | CLI Flag | Default | Description |
 |----------------------|----------|---------|-------------|
 | `OTS_FF_FILE` | `--ff-file` | `""` | Optional GCS bucket route path for a remote `.yaml` containing boolean feature rules |
@@ -82,11 +100,27 @@ The application natively supports executing configuration through either explici
 | `OTS_FF_AUTHZ_DOMAINS` | `--ff-authz-domains` | `""` | Active flag identifying explicit domain allowances mathematically in `go-feature-flag` |
 | `OTS_FF_AUTHZ_EMAILS` | `--ff-authz-emails` | `""` | Active flag identifying explicit email allowances |
 | `OTS_FF_BLOCK_EMAILS` | `--ff-block-emails` | `""` | Active flag identifying user bans |
-| `OTS_FF_BLOCKED_IPS` | `--ff-blocked-ips` | `""` | Active flag identifying IP bounds limits |
+| `OTS_FF_BLOCKED_IPS` | `--ff-blocked-ips` | `""` | Active flag identifying explicit IP bounds limits |
 
-### UI Enhancements
-| Environment Variable | CLI Flag | Default | Description |
-|----------------------|----------|---------|-------------|
-| `OTS_CONTACT_EMAIL` | `--contact-email` | `""` | Support pathway address explicitly shown globally inside permission block pages |
-| `OTS_HIDE_FOOTER` | `--hide-footer` | `false` | When passed, this natively strips the HTML footer UI component cleanly from rendering |
-| `OTS_GOOGLE_TAG_ID` | `--google-tag-id` | `""` | Instantly inserts Google Analytics telemetry securely tied behind user cookie acceptances |
+---
+
+### Command: `ots rotate-dek`
+
+Physically interacts with the `aead.AES128GCMKeyTemplate()` inside Google Tink to cryptographically overwrite your GCP Secret manager containing the primary Data Encryption Key.
+
+| Environment Variable | CLI Flag | Description |
+|----------------------|----------|-------------|
+| `OTS_PROJECT_ID` | `--project-id` | Your globally unique Google Cloud Project ID |
+| `OTS_DEK_SECRET` | `--dek-secret` | GCP Secret Name exactly where the Data Encryption Key lives |
+
+---
+
+### Command: `ots lookup-user`
+
+*Usage: `ots lookup-user [id]`*
+
+Downloads and physically parses the populated User Profile payload (`given_name`, `picture`, `sub`, etc.) directly from the distinct GCS bucket matching the target `[id]`.
+
+| Environment Variable | CLI Flag | Description |
+|----------------------|----------|-------------|
+| `OTS_USER_BUCKET` | `--user-bucket` | Target GCS Bucket Name hosting serialized user models |
