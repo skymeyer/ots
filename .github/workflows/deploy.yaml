@@ -47,11 +47,20 @@ jobs:
         build-args: |
           VERSION_ARG=${{ github.ref_name }}
     -
-      id: deploy
-      name: Deploy to Cloud Run
+      id: deploy-svc
+      name: Deploy service to Cloud Run
       uses: google-github-actions/deploy-cloudrun@v3
       with:
         service: onetime-secret
+        image: gcr.io/skymeyer/onetime-secret:${{ github.ref_name }}
+        region: us-west1
+        project_id: one-time-secrets-491623
+    -
+      id: deploy-job
+      name: Deploy DEK rotation job to Cloud Run
+      uses: google-github-actions/deploy-cloudrun@v3
+      with:
+        job: onetime-secret-rotate-dek
         image: gcr.io/skymeyer/onetime-secret:${{ github.ref_name }}
         region: us-west1
         project_id: one-time-secrets-491623
