@@ -3,6 +3,7 @@ package backend
 import (
 	"fmt"
 	"net/http"
+	"path/filepath"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
@@ -79,13 +80,16 @@ func FileServer(r chi.Router, path string, root http.FileSystem) {
 	fs := http.StripPrefix(path, http.FileServer(root))
 
 	r.Get(path+"*", func(w http.ResponseWriter, r *http.Request) {
-		// If trying to access a file that might exist, serve it via the FileServer. Wait, actually we fallback to index.html if it doesn't.
 
-		f, err := root.Open(strings.TrimPrefix(r.URL.Path, path))
-		if err == nil {
-			f.Close()
-			fs.ServeHTTP(w, r)
-			return
+		// If trying to access a file that might exist, serve it via the FileServer.
+		cleanPath := filepath.Clean(strings.TrimPrefix(r.URL.Path, path))
+		if filepath.IsLocal(cleanPath) {
+			f, err := root.Open(cleanPath)
+			if err == nil {
+				f.Close()
+				fs.ServeHTTP(w, r)
+				return
+			}
 		}
 
 		// Serve index.html as fallback for Client-side Routing
