@@ -13,6 +13,8 @@ builds:
     binary: ots
     env:
       - CGO_ENABLED=0
+    ldflags:
+      - -s -w -X 'github.com/skymeyer/onetime-secret/cmd.version={{ .Version }}
     goos:
       - linux
       - windows
@@ -48,3 +50,9 @@ changelog:
     exclude:
       - "^docs:"
       - "^test:"
+
+release:
+  footer: |
+    ## Container image
+
+    `gcr.io/skymeyer/onetime-secret:{{ .Version }}`
