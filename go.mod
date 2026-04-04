@@ -11,7 +11,7 @@ require (
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
 	github.com/thomaspoignant/go-feature-flag v1.52.0
-	go.skymeyer.dev/pkg v1.0.0
+	go.skymeyer.dev/pkg v1.0.1
 	golang.org/x/oauth2 v0.36.0
 )
 
