@@ -133,3 +133,7 @@ func (c *Config) FeatureFlagAuthz(ui *UserInfo) bool {
 	log.Warn().Str("user", ui.ID).Msg("fflags: unauthorized login attempt")
 	return false
 }
+
+func (c *Config) IsSecureCookie() bool {
+	return strings.HasPrefix(c.PublicURL, "https")
+}

@@ -81,7 +81,7 @@ func AuthLoginHandler(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 		Expires:  time.Now().Add(10 * time.Minute),
 		HttpOnly: true,
-		Secure:   strings.HasPrefix(AppConfig.PublicURL, "https"), // Ensure secure over HTTPS
+		Secure:   AppConfig.IsSecureCookie(),
 		SameSite: http.SameSiteLaxMode,
 	})
 
@@ -92,7 +92,7 @@ func AuthLoginHandler(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 		Expires:  time.Now().Add(10 * time.Minute),
 		HttpOnly: true,
-		Secure:   strings.HasPrefix(AppConfig.PublicURL, "https"), // Ensure secure over HTTPS
+		Secure:   AppConfig.IsSecureCookie(),
 		SameSite: http.SameSiteLaxMode,
 	})
 
@@ -105,7 +105,7 @@ func AuthLoginHandler(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 		Expires:  time.Now().Add(10 * time.Minute),
 		HttpOnly: true,
-		Secure:   strings.HasPrefix(AppConfig.PublicURL, "https"),
+		Secure:   AppConfig.IsSecureCookie(),
 		SameSite: http.SameSiteLaxMode,
 	})
 
@@ -151,6 +151,7 @@ func AuthCallbackHandler(w http.ResponseWriter, r *http.Request) {
 		Value:    "",
 		Path:     "/",
 		Expires:  time.Unix(0, 0),
+		Secure:   AppConfig.IsSecureCookie(),
 		HttpOnly: true,
 	})
 	http.SetCookie(w, &http.Cookie{
@@ -158,6 +159,7 @@ func AuthCallbackHandler(w http.ResponseWriter, r *http.Request) {
 		Value:    "",
 		Path:     "/",
 		Expires:  time.Unix(0, 0),
+		Secure:   AppConfig.IsSecureCookie(),
 		HttpOnly: true,
 	})
 	http.SetCookie(w, &http.Cookie{
@@ -165,6 +167,7 @@ func AuthCallbackHandler(w http.ResponseWriter, r *http.Request) {
 		Value:    "",
 		Path:     "/",
 		Expires:  time.Unix(0, 0),
+		Secure:   AppConfig.IsSecureCookie(),
 		HttpOnly: true,
 	})
 
@@ -256,7 +259,7 @@ func handleUserLogin(w http.ResponseWriter, r *http.Request, u *UserInfo) {
 		Path:     "/",
 		Expires:  sess.ExpiresAt,
 		HttpOnly: true,
-		Secure:   strings.HasPrefix(AppConfig.PublicURL, "https"), // Ensure secure over HTTPS
+		Secure:   AppConfig.IsSecureCookie(),
 		SameSite: http.SameSiteLaxMode,
 	})
 
@@ -271,6 +274,7 @@ func AuthLogoutHandler(w http.ResponseWriter, r *http.Request) {
 		Value:    "",
 		Path:     "/",
 		Expires:  time.Unix(0, 0),
+		Secure:   AppConfig.IsSecureCookie(),
 		HttpOnly: true,
 	})
 	http.Redirect(w, r, "/", http.StatusSeeOther)
