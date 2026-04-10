@@ -5,26 +5,32 @@ import (
 	"strings"
 	"time"
 
+	semver "github.com/hashicorp/go-version"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
 var (
-	version = "v0.0.0"
-	cfgFile string
+	// Values set at build time
+	version   = "v1.0.7"
+	commit    = "3681e4a"
+	timestamp = "20260410T202908Z"
+
+	versionSemver *semver.Version
+	cfgFile       string
 )
 
 var rootCmd = &cobra.Command{
 	Use:   "ots",
-	Short: "A one-time secret sharing web application " + version,
+	Short: "A one-time secret sharing web application v" + getVersion().String(),
 }
 
 var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print the version number of onetime-secret",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println(version)
+		fmt.Fprintf(cmd.OutOrStdout(), "%s\n", getVersion().String())
 	},
 }
 
@@ -98,4 +104,41 @@ func initConfig() {
 	if err := viper.ReadInConfig(); err == nil {
 		log.Info().Str("config", viper.ConfigFileUsed()).Msg("Using config file")
 	}
+}
+
+func getVersion() *semver.Version {
+	if versionSemver != nil {
+		return versionSemver
+	}
+
+	var (
+		v        = version
+		metadata = []string{}
+	)
+
+	if commit != "" {
+		metadata = append(metadata, "sha", commit)
+	}
+
+	if timestamp != "" {
+		metadata = append(metadata, timestamp)
+	}
+
+	if len(metadata) > 0 {
+		v = fmt.Sprintf("%s+%s", v, strings.Join(metadata, "."))
+	}
+
+	sv, err := semver.NewVersion(v)
+	if err != nil {
+		log.Warn().Err(err).
+			Str("version", version).
+			Str("commit", commit).
+			Str("timestamp", timestamp).
+			Str("input", v).
+			Msg("Failed to parse version")
+		versionSemver = semver.Must(semver.NewVersion("v0.0.0+unknown"))
+	} else {
+		versionSemver = sv
+	}
+	return versionSemver
 }

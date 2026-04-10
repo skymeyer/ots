@@ -16,8 +16,8 @@ builds:
     ldflags:
       - -s -w
       - -X 'github.com/skymeyer/onetime-secret/cmd.version=v{{ .Version }}'
-      - -X 'github.com/skymeyer/onetime-secret/cmd.commit={{ .Commit }}'
-      - -X 'github.com/skymeyer/onetime-secret/cmd.date={{ .Date }}'
+      - -X 'github.com/skymeyer/onetime-secret/cmd.commit={{ .ShortCommit }}'
+      - -X 'github.com/skymeyer/onetime-secret/cmd.timestamp={{ .Now.Format "20060102T150405Z" }}'
     goos:
       - linux
       - windows
@@ -58,4 +58,4 @@ release:
   footer: |
     ## Container image
 
-    `gcr.io/skymeyer/onetime-secret:{{ .Version }}`
+    `gcr.io/skymeyer/onetime-secret:v{{ .Version }}`

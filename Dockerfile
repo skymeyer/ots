@@ -15,7 +15,9 @@ COPY . .
 
 # Build the Go application (strip debug info for smaller size)
 ARG VERSION_ARG
-RUN go build -trimpath -ldflags="-s -w -X 'github.com/skymeyer/onetime-secret/cmd.version=$VERSION_ARG'" -o ots main.go
+ARG COMMIT_ARG
+ARG TIMESTAMP_ARG
+RUN go build -trimpath -ldflags="-s -w -X 'github.com/skymeyer/onetime-secret/cmd.version=$VERSION_ARG' -X 'github.com/skymeyer/onetime-secret/cmd.commit=$COMMIT_ARG' -X 'github.com/skymeyer/onetime-secret/cmd.timestamp=$TIMESTAMP_ARG'" -o ots main.go
 
 
 FROM gcr.io/distroless/static-debian13:nonroot

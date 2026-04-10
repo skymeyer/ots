@@ -56,7 +56,7 @@ var serverCmd = &cobra.Command{
 
 		// Initialize Logger
 		backend.InitLogger(backend.AppConfig.LogLevel, backend.AppConfig.Dev)
-		log.Info().Str("version", version).Msg("Logger initialized successfully")
+		log.Info().Str("version", getVersion().String()).Msg("Logger initialized successfully")
 
 		// Security: Fallback to a random session secret if none provided in dev
 		if backend.AppConfig.SessionSecret == "" {

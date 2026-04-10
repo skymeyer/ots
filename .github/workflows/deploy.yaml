@@ -35,6 +35,14 @@ jobs:
       uses: docker/metadata-action@v6
       with:
         images: gcr.io/skymeyer/onetime-secret
+    -
+      id: build-short-sha
+      name: Build short SHA
+      run: echo "short_sha=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+    -
+      id: build-timestamp
+      name: Build timestamp
+      run: echo "now=$(date -u +'%Y%m%dT%H%M%SZ')" >> $GITHUB_OUTPUT
     - 
       id: build
       name: Build and push container image
@@ -46,6 +54,8 @@ jobs:
         labels: ${{ steps.meta.outputs.labels }}
         build-args: |
           VERSION_ARG=${{ github.ref_name }}
+          COMMIT_ARG=${{ steps.build-short-sha.outputs.short_sha }}
+          TIMESTAMP_ARG=${{ steps.build-timestamp.outputs.now }}
     -
       id: deploy-svc
       name: Deploy service to Cloud Run
