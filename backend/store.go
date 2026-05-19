@@ -11,9 +11,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
-
-	"github.com/rs/zerolog/log"
-
+	"log/slog"
 	"go.skymeyer.dev/pkg/crypto"
 )
 
@@ -84,16 +82,16 @@ func (s *SecretStore) StoreUser(ctx context.Context, ui UserInfo) error {
 
 	data, err := json.Marshal(ui)
 	if err != nil {
-		log.Error().Err(err).Str("user", ui.ID).Msg("failed to marshal user info")
+		slog.Error("failed to marshal user info", "error", err, "user", ui.ID)
 		return fmt.Errorf("failed to marshal user info: %w", err)
 	}
 
 	w.ContentType = "application/json"
 	if _, err := io.Copy(w, bytes.NewBuffer(data)); err != nil {
-		log.Error().Err(err).Str("user", ui.ID).Msg("failed to write user info")
+		slog.Error("failed to write user info", "error", err, "user", ui.ID)
 		return fmt.Errorf("failed to write user info: %w", err)
 	}
-	log.Debug().Str("user", ui.ID).Interface("user_info", ui).Msg("user info stored successfully")
+	slog.Debug("user info stored successfully", "user", ui.ID, "user_info", ui)
 	return nil
 }
 
@@ -102,17 +100,16 @@ func (s *SecretStore) StoreUser(ctx context.Context, ui UserInfo) error {
 func (s *SecretStore) StoreSecret(ctx context.Context, value string, ttlHours int) (string, error) {
 	id, err := GenerateID()
 	if err != nil {
-		log.Error().Err(err).Msg("failed to generate id")
+		slog.Error("failed to generate id", "error", err)
 		return "", fmt.Errorf("failed to generate id: %w", err)
 	}
 
 	if ttlHours <= 0 {
-		log.Debug().Int("ttlHours", ttlHours).Msg("ttlHours is zero or negative, using default")
+		slog.Debug("ttlHours is zero or negative, using default", "ttlHours", ttlHours)
 		ttlHours = AppConfig.DefaultTTLHours
 	}
 	if ttlHours > AppConfig.MaxTTLHours {
-		log.Debug().Int("ttlHours", ttlHours).Int("maxTTLHours", AppConfig.MaxTTLHours).
-			Msg("ttlHours is greater than maxTTLHours, using maxTTLHours")
+		slog.Debug("ttlHours is greater than maxTTLHours, using maxTTLHours", "ttlHours", ttlHours, "maxTTLHours", AppConfig.MaxTTLHours)
 		ttlHours = AppConfig.MaxTTLHours
 	}
 
@@ -133,7 +130,7 @@ func (s *SecretStore) StoreSecret(ctx context.Context, value string, ttlHours in
 	// Convert to JSON
 	jsonBytes, err := json.Marshal(secret)
 	if err != nil {
-		log.Error().Err(err).Str("user", user).Msg("failed to marshal secret")
+		slog.Error("failed to marshal secret", "error", err, "user", user)
 		return "", fmt.Errorf("failed to marshal secret: %w", err)
 	}
 
@@ -143,7 +140,7 @@ func (s *SecretStore) StoreSecret(ctx context.Context, value string, ttlHours in
 	})
 	sealed, err := crypto.Seal(ctx, jsonBytes)
 	if err != nil {
-		log.Error().Err(err).Str("user", user).Msg("failed to seal secret")
+		slog.Error("failed to seal secret", "error", err, "user", user)
 		return "", fmt.Errorf("failed to seal secret: %w", err)
 	}
 
@@ -170,21 +167,21 @@ func (s *SecretStore) StoreSecret(ctx context.Context, value string, ttlHours in
 	// Write the file content
 	sealedBytes, err := sealed.Bytes()
 	if err != nil {
-		log.Error().Err(err).Str("user", user).Msg("failed to marshal sealed")
+		slog.Error("failed to marshal sealed", "error", err, "user", user)
 		return "", fmt.Errorf("failed to marshal sealed: %w", err)
 	}
 	if _, err := io.Copy(w, bytes.NewReader(sealedBytes)); err != nil {
-		log.Error().Err(err).Str("user", user).Msg("io.Copy failed")
+		slog.Error("io.Copy failed", "error", err, "user", user)
 		return "", fmt.Errorf("io.Copy: %w", err)
 	}
 
 	// Close the writer to finalize the upload
 	if err := w.Close(); err != nil {
-		log.Error().Err(err).Str("user", user).Msg("w.Close failed")
+		slog.Error("w.Close failed", "error", err, "user", user)
 		return "", fmt.Errorf("w.Close: %w", err)
 	}
 
-	log.Info().Str("id", id).Str("user", user).Int("ttlHours", ttlHours).Msg("secret stored successfully")
+	slog.Info("secret stored successfully", "id", id, "user", user, "ttlHours", ttlHours)
 	return id, nil
 }
 
@@ -198,27 +195,27 @@ func (s *SecretStore) GetMetadata(ctx context.Context, id string) (*SecretEntry,
 		if err == storage.ErrObjectNotExist {
 			return nil, false
 		}
-		log.Info().Err(err).Str("id", id).Msg("gcs object no longer exists")
+		slog.Info("gcs object no longer exists", "error", err, "id", id)
 		return nil, false
 	}
 
 	// Object exists, return its custom metadata
 	createdAt, err := time.Parse(time.RFC3339, attrs.Metadata[METADATA_CREATED_AT])
 	if err != nil {
-		log.Error().Err(err).Str("id", id).Msg("time.Parse created_at failed")
+		slog.Error("time.Parse created_at failed", "error", err, "id", id)
 		return nil, false
 	}
 	expiresAt, err := time.Parse(time.RFC3339, attrs.Metadata[METADATA_EXPIRES_AT])
 	if err != nil {
-		log.Error().Err(err).Str("id", id).Msg("time.Parse expires_at failed")
+		slog.Error("time.Parse expires_at failed", "error", err, "id", id)
 		return nil, false
 	}
 
 	// If expired, we pretend it doesn't exist. GCS Bucket Lifecycle will delete it later.
 	if time.Now().After(expiresAt) {
-		log.Debug().Str("id", id).Msg("secret exists but is expired")
+		slog.Debug("secret exists but is expired", "id", id)
 		if err := s.destroySecret(ctx, &SecretEntry{ID: id}); err != nil {
-			log.Error().Err(err).Str("id", id).Msg("destroy expired secret failed")
+			slog.Error("destroy expired secret failed", "error", err, "id", id)
 		}
 		return nil, false
 	}
@@ -232,7 +229,7 @@ func (s *SecretStore) GetMetadata(ctx context.Context, id string) (*SecretEntry,
 		secret.Owner = owner
 	}
 
-	log.Info().Str("id", id).Str("owner", secret.Owner).Msg("secret metadata retrieved")
+	slog.Info("secret metadata retrieved", "id", id, "owner", secret.Owner)
 	return secret, true
 }
 
@@ -242,14 +239,14 @@ func (s *SecretStore) RevealSecret(ctx context.Context, id string) (string, bool
 	// Get secret metadata
 	secret, ok := s.GetMetadata(ctx, id)
 	if !ok {
-		log.Error().Str("id", id).Msg("secret does not exist or is expired")
+		slog.Error("secret does not exist or is expired", "id", id)
 		return "", false
 	}
 
 	// Create a reader for the object
 	reader, err := s.gcs.Bucket(s.secretBucket).Object(id).NewReader(ctx)
 	if err != nil {
-		log.Error().Err(err).Str("id", id).Msg("reader creation failed")
+		slog.Error("reader creation failed", "error", err, "id", id)
 		return "", false
 	}
 	defer reader.Close()
@@ -257,14 +254,14 @@ func (s *SecretStore) RevealSecret(ctx context.Context, id string) (string, bool
 	// Read the bytes from the file
 	bytes, err := io.ReadAll(reader)
 	if err != nil {
-		log.Error().Err(err).Str("id", id).Msg("io.ReadAll failed")
+		slog.Error("io.ReadAll failed", "error", err, "id", id)
 		return "", false
 	}
 
 	// Decrypt the secret
 	sealed, err := crypto.UnmarshalSealed(bytes)
 	if err != nil {
-		log.Error().Err(err).Str("id", id).Msg("crypto.UnmarshalSealed failed")
+		slog.Error("crypto.UnmarshalSealed failed", "error", err, "id", id)
 		return "", false
 	}
 
@@ -274,18 +271,18 @@ func (s *SecretStore) RevealSecret(ctx context.Context, id string) (string, bool
 	})
 	decrypted, err := crypto.Unseal(ctx, sealed)
 	if err != nil {
-		log.Error().Err(err).Str("id", id).Str("owner", secret.Owner).Msg("crypto.Unseal failed")
+		slog.Error("crypto.Unseal failed", "error", err, "id", id, "owner", secret.Owner)
 		return "", false
 	}
 
 	if err := json.Unmarshal(decrypted, &secret); err != nil {
-		log.Error().Err(err).Str("id", id).Str("owner", secret.Owner).Msg("json.Unmarshal failed")
+		slog.Error("json.Unmarshal failed", "error", err, "id", id, "owner", secret.Owner)
 		return "", false
 	}
 
 	// Burn the secret
 	if err := s.destroySecret(ctx, secret); err != nil {
-		log.Error().Err(err).Str("id", secret.ID).Str("owner", secret.Owner).Msg("destroy revealed secret failed")
+		slog.Error("destroy revealed secret failed", "error", err, "id", secret.ID, "owner", secret.Owner)
 		return "", false
 	}
 
@@ -296,6 +293,6 @@ func (s *SecretStore) destroySecret(ctx context.Context, secret *SecretEntry) er
 	if err := s.gcs.Bucket(s.secretBucket).Object(secret.ID).Delete(ctx); err != nil {
 		return err
 	}
-	log.Info().Str("id", secret.ID).Str("owner", secret.Owner).Msg("secret destroyed")
+	slog.Info("secret destroyed", "id", secret.ID, "owner", secret.Owner)
 	return nil
 }

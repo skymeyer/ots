@@ -9,7 +9,8 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/httprate"
-	"github.com/rs/zerolog/log"
+	"log/slog"
+	"os"
 	"github.com/skymeyer/onetime-secret/frontend"
 	"github.com/thomaspoignant/go-feature-flag/ffcontext"
 )
@@ -23,7 +24,7 @@ func StartServer() error {
 	r.Use(middleware.RealIP)
 	r.Use(IPBlockMiddleware)
 	if AppConfig.Dev {
-		r.Use(LoggerMiddleware(&log.Logger))
+		r.Use(LoggerMiddleware(slog.Default()))
 	}
 	r.Use(middleware.Recoverer)
 
@@ -50,7 +51,7 @@ func StartServer() error {
 						AppConfig.RateLimitWin,
 						httprate.WithKeyByIP(), // Note middleware.RealIP ensure the remote address is correct
 						httprate.WithLimitHandler(func(w http.ResponseWriter, r *http.Request) {
-							log.Warn().Str("ip", r.RemoteAddr).Str("path", r.URL.Path).Msg("Rate limit exceeded")
+							slog.Warn("Rate limit exceeded", "ip", r.RemoteAddr, "path", r.URL.Path)
 							http.Error(w, http.StatusText(http.StatusTooManyRequests), http.StatusTooManyRequests)
 						}),
 					))
@@ -65,7 +66,7 @@ func StartServer() error {
 	FileServer(r, "/", http.FS(frontend.FS))
 
 	bindAddr := fmt.Sprintf(":%d", AppConfig.Port)
-	log.Info().Str("bind", bindAddr).Msg("Server starting")
+	slog.Info("Server starting", "bind", bindAddr)
 
 	return http.ListenAndServe(bindAddr, r)
 }
@@ -74,7 +75,8 @@ func StartServer() error {
 // static files from a http.FileSystem. It additionally handles SPA routing fallback.
 func FileServer(r chi.Router, path string, root http.FileSystem) {
 	if strings.ContainsAny(path, "{}*") {
-		log.Fatal().Msg("FileServer does not permit any URL parameters")
+		slog.Error("FileServer does not permit any URL parameters")
+		os.Exit(1)
 	}
 
 	fs := http.StripPrefix(path, http.FileServer(root))
@@ -136,7 +138,7 @@ func isIPBlocked(ip string) bool {
 		ctx := ffcontext.NewEvaluationContext(ip)
 		blocked, err := ffs.Client().BoolVariationDetails(AppConfig.FFBlockedIPs, ctx, false)
 		if err != nil {
-			log.Error().Err(err).Msg("fflags: failed to get blocked ips")
+			slog.Error("fflags: failed to get blocked ips", "error", err)
 			return false
 		}
 		if blocked.Value {
@@ -146,7 +148,7 @@ func isIPBlocked(ip string) bool {
 			} else {
 				reason = "unknown"
 			}
-			log.Warn().Str("ip", ip).Str("reason", reason).Msg("fflags: blocked ip")
+			slog.Warn("fflags: blocked ip", "ip", ip, "reason", reason)
 			return true
 		}
 		return false
@@ -156,7 +158,7 @@ func isIPBlocked(ip string) bool {
 	if len(AppConfig.BlockedIPs) > 0 {
 		for _, blockedIP := range AppConfig.BlockedIPs {
 			if ip == blockedIP || strings.HasPrefix(ip, blockedIP) {
-				log.Warn().Str("ip", ip).Msg("blocked ip")
+				slog.Warn("blocked ip", "ip", ip)
 				return true
 			}
 		}

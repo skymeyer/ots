@@ -4,7 +4,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rs/zerolog/log"
+	"log/slog"
 	"github.com/thomaspoignant/go-feature-flag/ffcontext"
 )
 
@@ -71,7 +71,7 @@ func (c *Config) IsAllowed(ui *UserInfo) bool {
 	// Check allowed domains
 	for _, ad := range c.AllowedDomains {
 		if strings.EqualFold(ad, ui.Domain()) {
-			log.Debug().Str("user", ui.ID).Str("domain", ui.Domain()).Msg("user allowed via domain")
+			slog.Debug("user allowed via domain", "user", ui.ID, "domain", ui.Domain())
 			return true
 		}
 	}
@@ -79,13 +79,13 @@ func (c *Config) IsAllowed(ui *UserInfo) bool {
 	// Check allowed emails
 	for _, ae := range c.AllowedEmails {
 		if strings.EqualFold(ae, ui.Email) {
-			log.Debug().Str("user", ui.ID).Msg("user allowed via email")
+			slog.Debug("user allowed via email", "user", ui.ID)
 			return true
 		}
 	}
 
 	// If both slices are empty, effectively everyone is blocked.
-	log.Warn().Str("user", ui.ID).Msg("unauthorized login attempt")
+	slog.Warn("unauthorized login attempt", "user", ui.ID)
 	return false
 }
 
@@ -103,34 +103,34 @@ func (c *Config) FeatureFlagAuthz(ui *UserInfo) bool {
 	// Check if user is blocked
 	blocked, err := ffs.Client().BoolVariation(c.FFBlockEmails, ctx, false)
 	if err != nil {
-		log.Error().Err(err).Msg("fflags: failed to get blocked users")
+		slog.Error("fflags: failed to get blocked users", "error", err)
 	}
 	if blocked {
-		log.Warn().Str("user", ui.ID).Msg("fflags: blocked user login attempt")
+		slog.Warn("fflags: blocked user login attempt", "user", ui.ID)
 		return false
 	}
 
 	// Authorize domains
 	allowed, err = ffs.Client().BoolVariation(c.FFAuthzDomains, ctx, false)
 	if err != nil {
-		log.Error().Err(err).Msg("fflags: failed to get allowed domains")
+		slog.Error("fflags: failed to get allowed domains", "error", err)
 	}
 	if allowed {
-		log.Debug().Str("user", ui.ID).Str("domain", ui.Domain()).Msg("fflags: user allowed via domain")
+		slog.Debug("fflags: user allowed via domain", "user", ui.ID, "domain", ui.Domain())
 		return true
 	}
 
 	// Authorize individual users
 	allowed, err = ffs.Client().BoolVariation(c.FFAuthzEmails, ctx, false)
 	if err != nil {
-		log.Error().Err(err).Msg("fflags: failed to get allowed users")
+		slog.Error("fflags: failed to get allowed users", "error", err)
 	}
 	if allowed {
-		log.Debug().Str("user", ui.ID).Msg("fflags: user allowed via email")
+		slog.Debug("fflags: user allowed via email", "user", ui.ID)
 		return true
 	}
 
-	log.Warn().Str("user", ui.ID).Msg("fflags: unauthorized login attempt")
+	slog.Warn("fflags: unauthorized login attempt", "user", ui.ID)
 	return false
 }
 
