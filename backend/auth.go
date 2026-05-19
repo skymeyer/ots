@@ -15,7 +15,7 @@ import (
 	"context"
 
 	"github.com/coreos/go-oidc/v3/oidc"
-	"github.com/rs/zerolog/log"
+	"log/slog"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 )
@@ -121,27 +121,27 @@ func AuthLoginHandler(w http.ResponseWriter, r *http.Request) {
 func AuthCallbackHandler(w http.ResponseWriter, r *http.Request) {
 	oauthState, err := r.Cookie("ots_oauth_state")
 	if err != nil {
-		log.Warn().Err(err).Msg("OAuth state cookie missing")
+		slog.Warn("OAuth state cookie missing", "error", err)
 		http.Redirect(w, r, "/?error=oauth_state_missing", http.StatusTemporaryRedirect)
 		return
 	}
 
 	oauthVerifier, err := r.Cookie("ots_oauth_verifier")
 	if err != nil {
-		log.Warn().Err(err).Msg("OAuth verifier cookie missing")
+		slog.Warn("OAuth verifier cookie missing", "error", err)
 		http.Redirect(w, r, "/?error=oauth_verifier_missing", http.StatusTemporaryRedirect)
 		return
 	}
 
 	oauthNonce, err := r.Cookie("ots_oauth_nonce")
 	if err != nil {
-		log.Warn().Err(err).Msg("OAuth nonce cookie missing")
+		slog.Warn("OAuth nonce cookie missing", "error", err)
 		http.Redirect(w, r, "/?error=oauth_nonce_missing", http.StatusTemporaryRedirect)
 		return
 	}
 
 	if r.FormValue("state") != oauthState.Value {
-		log.Warn().Msg("Invalid OAuth state")
+		slog.Warn("Invalid OAuth state")
 		http.Redirect(w, r, "/?error=invalid_oauth_state", http.StatusTemporaryRedirect)
 		return
 	}
@@ -179,22 +179,22 @@ func AuthCallbackHandler(w http.ResponseWriter, r *http.Request) {
 
 	token, err := getOAuthConfig().Exchange(r.Context(), code, oauth2.SetAuthURLParam("code_verifier", oauthVerifier.Value))
 	if err != nil {
-		log.Error().Err(err).Msg("OAuth exchange failed")
+		slog.Error("OAuth exchange failed", "error", err)
 		http.Error(w, "auth failed", http.StatusInternalServerError)
 		return
 	}
 
 	rawIDToken, ok := token.Extra("id_token").(string)
 	if !ok {
-		log.Error().Msg("No id_token found in token response")
+		slog.Error("No id_token found in token response")
 		http.Error(w, "auth failed", http.StatusInternalServerError)
 		return
 	}
-	log.Debug().Str("id_token", rawIDToken).Msg("id token received")
+	slog.Debug("id token received", "id_token", rawIDToken)
 
 	provider, err := getOIDCProvider(r.Context())
 	if err != nil {
-		log.Error().Err(err).Msg("Failed initializing OIDC provider")
+		slog.Error("Failed initializing OIDC provider", "error", err)
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
@@ -202,26 +202,26 @@ func AuthCallbackHandler(w http.ResponseWriter, r *http.Request) {
 	verifier := provider.Verifier(&oidc.Config{ClientID: AppConfig.GoogleClientID})
 	idToken, err := verifier.Verify(r.Context(), rawIDToken)
 	if err != nil {
-		log.Error().Err(err).Msg("Failed to verify ID token")
+		slog.Error("Failed to verify ID token", "error", err)
 		http.Error(w, "auth failed", http.StatusInternalServerError)
 		return
 	}
 
 	if idToken.Nonce != oauthNonce.Value {
-		log.Warn().Msg("Invalid nonce in ID token")
+		slog.Warn("Invalid nonce in ID token")
 		http.Error(w, "auth failed", http.StatusForbidden)
 		return
 	}
 
 	if err := idToken.VerifyAccessToken(token.AccessToken); err != nil {
-		log.Error().Err(err).Msg("Failed to verify access token hash")
+		slog.Error("Failed to verify access token hash", "error", err)
 		http.Error(w, "auth failed", http.StatusInternalServerError)
 		return
 	}
 
 	var ui UserInfo
 	if err := idToken.Claims(&ui); err != nil {
-		log.Error().Err(err).Msg("Failed parsing id_token claims")
+		slog.Error("Failed parsing id_token claims", "error", err)
 		http.Error(w, "auth failed", http.StatusInternalServerError)
 		return
 	}
@@ -248,7 +248,7 @@ func handleUserLogin(w http.ResponseWriter, r *http.Request, u *UserInfo) {
 
 	val, err := signSession(sess)
 	if err != nil {
-		log.Error().Err(err).Msg("Failed signing session")
+		slog.Error("Failed signing session", "error", err)
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
@@ -263,7 +263,7 @@ func handleUserLogin(w http.ResponseWriter, r *http.Request, u *UserInfo) {
 		SameSite: http.SameSiteLaxMode,
 	})
 
-	log.Info().Str("user", u.ID).Msg("User logged in")
+	slog.Info("User logged in", "user", u.ID)
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 

@@ -6,7 +6,7 @@ import (
 	"time"
 
 	semver "github.com/hashicorp/go-version"
-	"github.com/rs/zerolog/log"
+	"log/slog"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -102,7 +102,7 @@ func initConfig() {
 	viper.AutomaticEnv()
 
 	if err := viper.ReadInConfig(); err == nil {
-		log.Info().Str("config", viper.ConfigFileUsed()).Msg("Using config file")
+		slog.Info("Using config file", "config", viper.ConfigFileUsed())
 	}
 }
 
@@ -130,12 +130,13 @@ func getVersion() *semver.Version {
 
 	sv, err := semver.NewVersion(v)
 	if err != nil {
-		log.Warn().Err(err).
-			Str("version", version).
-			Str("commit", commit).
-			Str("timestamp", timestamp).
-			Str("input", v).
-			Msg("Failed to parse version")
+		slog.Warn("Failed to parse version",
+			"error", err,
+			"version", version,
+			"commit", commit,
+			"timestamp", timestamp,
+			"input", v,
+		)
 		versionSemver = semver.Must(semver.NewVersion("v0.0.0+unknown"))
 	} else {
 		versionSemver = sv

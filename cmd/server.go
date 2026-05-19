@@ -4,9 +4,10 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"log/slog"
+	"os"
 	"time"
 
-	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
@@ -54,18 +55,18 @@ var serverCmd = &cobra.Command{
 			SessionSecret:    viper.GetString("session-secret"),
 		}
 
-		// Initialize Logger
 		backend.InitLogger(backend.AppConfig.LogLevel, backend.AppConfig.Dev)
-		log.Info().Str("version", getVersion().String()).Msg("Logger initialized successfully")
+		slog.Info("Logger initialized successfully", "version", getVersion().String())
 
 		// Security: Fallback to a random session secret if none provided in dev
 		if backend.AppConfig.SessionSecret == "" {
 			b := make([]byte, 32)
 			if _, err := rand.Read(b); err != nil {
-				log.Fatal().Err(err).Msg("Failed to generate session secret")
+				slog.Error("Failed to generate session secret", "error", err)
+				os.Exit(1)
 			}
 			backend.AppConfig.SessionSecret = hex.EncodeToString(b)
-			log.Warn().Msg("No session secret provided, generated a random one")
+			slog.Warn("No session secret provided, generated a random one")
 		}
 
 		// Initialize secret store
@@ -86,8 +87,7 @@ var serverCmd = &cobra.Command{
 			backend.AppConfig.SecretBucket, backend.AppConfig.UserBucket); err != nil {
 			return err
 		}
-		log.Info().Str("secret-bucket", backend.AppConfig.SecretBucket).Str("kek", kek).Str("dek", dek).
-			Msg("Secret store initialized")
+		slog.Info("Secret store initialized", "secret-bucket", backend.AppConfig.SecretBucket, "kek", kek, "dek", dek)
 
 		// Initialize feature flags if enabled
 		if backend.AppConfig.FFFile != "" && backend.AppConfig.FFAuthzDomains != "" && backend.AppConfig.FFAuthzEmails != "" && backend.AppConfig.FFBlockEmails != "" {
@@ -95,7 +95,7 @@ var serverCmd = &cobra.Command{
 			if err := backend.InitFFManager(backend.AppConfig.FFFile, refresh); err != nil {
 				return err
 			}
-			log.Info().Dur("refresh", refresh).Str("file", backend.AppConfig.FFFile).Msg("Feature flags initialized")
+			slog.Info("Feature flags initialized", "refresh", refresh, "file", backend.AppConfig.FFFile)
 		}
 
 		// Start Server

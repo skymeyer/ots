@@ -7,7 +7,7 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/rs/zerolog/log"
+	"log/slog"
 )
 
 type SecretRequest struct {
@@ -29,7 +29,7 @@ func AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		session, err := GetSession(r)
 		if err != nil {
-			log.Warn().Err(err).Msg("Unauthorized access attempt")
+			slog.Warn("Unauthorized access attempt", "error", err)
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
 		}
@@ -55,14 +55,14 @@ func CreateSecretHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(req.Secret) > AppConfig.MaxSecretLength {
-		log.Warn().Int("length", len(req.Secret)).Msg("Secret maximum length exceeded")
+		slog.Warn("Secret maximum length exceeded", "length", len(req.Secret))
 		http.Error(w, fmt.Sprintf("secret exceeded maximum length of %d", AppConfig.MaxSecretLength), http.StatusBadRequest)
 		return
 	}
 
 	id, err := GlobalStore.StoreSecret(r.Context(), req.Secret, req.TTLHours)
 	if err != nil {
-		log.Error().Err(err).Msg("Failed storing secret")
+		slog.Error("Failed storing secret", "error", err)
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
